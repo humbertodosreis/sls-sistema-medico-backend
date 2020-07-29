@@ -1,0 +1,112 @@
+service: sls-sistema-medico-backend
+
+plugins:
+  - serverless-offline
+
+custom:
+  allowedHeaders:
+    - Accept
+    - Content-Type
+    - Content-Length
+    - Authorization
+    - X-Amz-Date
+    - X-Api-Key
+    - X-Amz-Security-Token
+    - X-Amz-User-Agent
+    - app_user_id
+    - app_user_name
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  region: us-east-1
+  stage: prod
+  memorySize: 128
+  timeout: 5
+  endpointType: regional
+  environment:
+    PACIENTES_TABLE: ${self:service}-${opt:stage, self:provider.stage}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - dynamodb:Query
+        - dynamodb:PutItem
+        - dynamodb:DeleteItem
+      Resource: "arn:aws:dynamodb:${opt:region, self:provider.region}:*:table/${self:provider.environment.PACIENTES_TABLE}"
+
+functions:
+  add-note:
+    handler: api/adicionar-paciente.handler
+    description: POST /paciente
+    events:
+      - http:
+          path: paciente
+          method: post
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+  update-note:
+    handler: api/atualizar-paciente.handler
+    description: PATCH /paciente/{paciente_id}
+    events:
+      - http:
+          path: paciente/{paciente_id}
+          method: patch
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+  get-notes:
+    handler: api/obter-pacientes.handler
+    description: GET /pacientes
+    events:
+      - http:
+          path: pacientes
+          method: get
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+  get-note:
+    handler: api/obter-paciente.handler
+    description: GET /paciente/{paciente_id}
+    events:
+      - http:
+          path: paciente/{paciente_id}
+          method: get
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+  delete-note:
+    handler: api/excluir-paciente.handler
+    description: DELETE /paciente/{paciente_id}
+    events:
+      - http:
+          path: paciente/{paciente_id}
+          method: delete
+          cors:
+            origin: "*"
+            headers: ${self:custom.allowedHeaders}
+
+resources:
+  Resources:
+    PacientesTable:
+      Type: AWS::DynamoDB::Table
+      DeletionPolicy: Retain
+      Properties:
+        TableName: ${self:provider.environment.PACIENTES_TABLE}
+        AttributeDefinitions:
+          - AttributeName: paciente_id
+            AttributeType: S
+          - AttributeName: criado_em
+            AttributeType: N
+        KeySchema:
+          - AttributeName: paciente_id
+            KeyType: HASH
+          - AttributeName: criado_em
+            KeyType: RANGE
+        ProvisionedThroughput:
+          ReadCapacityUnits: 1
+          WriteCapacityUnits: 1
